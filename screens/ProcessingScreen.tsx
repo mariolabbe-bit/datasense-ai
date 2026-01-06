@@ -27,7 +27,8 @@ const ProcessingScreen: React.FC = () => {
                 setStatus('Analizando estructura...');
 
                 // Fetch chart recommendations from backend
-                const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+                const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
+                const backendUrl = import.meta.env.VITE_API_URL || PRODUCTION_BACKEND_URL;
                 let recommendations = [];
                 try {
                     const analysisResponse = await fetch(`${backendUrl}/api/analyze-structure`, {
