@@ -30,16 +30,17 @@ app.get('/api/models', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-    const { message } = req.body;
+    const { message, context } = req.body;
 
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
     }
 
     try {
-        // Probamos con el prefijo 'models/' explícito por si la SDK tiene un bug en este entorno
+        // Usamos gemini-2.0-flash que aparece explícitamente en tu lista de modelos disponibles
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash"
+            model: "gemini-2.0-flash",
+            systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
         });
 
         const result = await model.generateContent(message);
@@ -48,22 +49,11 @@ app.post('/api/chat', async (req, res) => {
 
         res.json({ text: text || "No response generated." });
     } catch (error: any) {
-        console.error('Gemini Error (Flash):', error.message);
-
-        // Si falla el Flash, intentamos automáticamente con Pro como fallback
-        try {
-            console.log("Intentando fallback con gemini-pro...");
-            const proModel = genAI.getGenerativeModel({ model: "gemini-pro" });
-            const proResult = await proModel.generateContent(message);
-            const proResponse = await proResult.response;
-            res.json({ text: proResponse.text(), note: "Respuesta desde gemini-pro" });
-        } catch (proError: any) {
-            res.status(500).json({
-                error: 'Ambos modelos (flash y pro) fallaron',
-                flash_error: error.message,
-                pro_error: proError.message
-            });
-        }
+        console.error('Gemini Error:', error.message);
+        res.status(500).json({
+            error: 'Error de comunicación con Gemini',
+            message: error.message
+        });
     }
 });
 
