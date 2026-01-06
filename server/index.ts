@@ -30,32 +30,40 @@ app.get('/api/models', async (req, res) => {
 });
 
 app.post('/api/chat', async (req, res) => {
-    const { message, context } = req.body;
+    const { message } = req.body;
 
     if (!message) {
         return res.status(400).json({ error: 'Message is required' });
     }
 
     try {
-        // Probamos con 'gemini-1.5-flash-latest' que a veces ayuda con problemas de resolución
+        // Intentamos con el modelo más estándar. Si esto da 404, probaremos con gemini-pro
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash-latest",
-            systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
+            model: "gemini-1.5-flash"
         });
 
-        // Usamos generateContent directamente para mayor simplicidad y evitar problemas de estado de sesión
         const result = await model.generateContent(message);
         const response = await result.response;
         const text = response.text();
 
         res.json({ text: text || "No response generated." });
     } catch (error: any) {
-        console.error('Gemini Error Detallado:', error);
-        res.status(500).json({
-            error: 'Failed to communicate with Gemini',
-            message: error.message,
-            status: error.status
-        });
+        console.error('Gemini Error (Flash):', error.message);
+
+        // Si falla el Flash, intentamos automáticamente con Pro como fallback
+        try {
+            console.log("Intentando fallback con gemini-pro...");
+            const proModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+            const proResult = await proModel.generateContent(message);
+            const proResponse = await proResult.response;
+            res.json({ text: proResponse.text(), note: "Respuesta desde gemini-pro" });
+        } catch (proError: any) {
+            res.status(500).json({
+                error: 'Ambos modelos (flash y pro) fallaron',
+                flash_error: error.message,
+                pro_error: proError.message
+            });
+        }
     }
 });
 
