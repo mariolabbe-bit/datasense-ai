@@ -37,9 +37,10 @@ app.post('/api/chat', async (req, res) => {
     }
 
     try {
-        // Usamos gemini-2.0-flash que aparece explícitamente en tu lista de modelos disponibles
+        // Usamos 'gemini-flash-latest' que es un alias dinámico al modelo Flash más estable.
+        // Según tu lista, este modelo está disponible.
         const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
+            model: "gemini-flash-latest",
             systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
         });
 
@@ -50,6 +51,15 @@ app.post('/api/chat', async (req, res) => {
         res.json({ text: text || "No response generated." });
     } catch (error: any) {
         console.error('Gemini Error:', error.message);
+
+        // Si la cuota falla, damos un mensaje claro al usuario
+        if (error.message.includes('429') || error.message.includes('quota')) {
+            return res.status(429).json({
+                error: 'Límite de cuota excedido',
+                message: 'Tu clave de Gemini ha alcanzado el límite de peticiones gratuitas por hoy. Intenta de nuevo en unos minutos o verifica tu plan en Google AI Studio.'
+            });
+        }
+
         res.status(500).json({
             error: 'Error de comunicación con Gemini',
             message: error.message
