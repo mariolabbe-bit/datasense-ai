@@ -18,17 +18,6 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-app.get('/api/models', async (req, res) => {
-    try {
-        // Intentaremos usar una petición fetch directa a Google para ver qué modelos ve esta IP/Clave
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
-        const data = await response.json();
-        res.json(data);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 app.post('/api/chat', async (req, res) => {
     const { message, context } = req.body;
 
