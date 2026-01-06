@@ -18,15 +18,6 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-app.get('/api/models', async (req, res) => {
-    try {
-        const list = await genAI.listModels();
-        res.json(list);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 app.post('/api/chat', async (req, res) => {
     const { message, context } = req.body;
 
@@ -40,11 +31,12 @@ app.post('/api/chat', async (req, res) => {
             systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
         });
 
-        const chat = model.startChat();
-        const result = await chat.sendMessage(message);
+        // Usamos generateContent directamente para mayor simplicidad y evitar problemas de estado de sesión
+        const result = await model.generateContent(message);
         const response = await result.response;
+        const text = response.text();
 
-        res.json({ text: response.text() || "No response generated." });
+        res.json({ text: text || "No response generated." });
     } catch (error: any) {
         console.error('Gemini Error:', error);
         res.status(500).json({
