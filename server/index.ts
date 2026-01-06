@@ -37,9 +37,13 @@ app.post('/api/chat', async (req, res) => {
 
         const result = await chat.sendMessage({ message });
         res.json({ text: result.text || "No response generated." });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Gemini Error:', error);
-        res.status(500).json({ error: 'Failed to communicate with Gemini' });
+        res.status(500).json({
+            error: 'Failed to communicate with Gemini',
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
