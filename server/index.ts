@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 dotenv.config();
 
@@ -11,10 +11,8 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
-// Inicialización de Gemini
-const genAI = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY || ''
-});
+// Inicialización de Gemini con la SDK estándar
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
@@ -28,21 +26,21 @@ app.post('/api/chat', async (req, res) => {
     }
 
     try {
-        const chat = genAI.chats.create({
-            model: 'gemini-1.5-flash',
-            config: {
-                systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
-            }
+        const model = genAI.getGenerativeModel({
+            model: "gemini-1.5-flash",
+            systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
         });
 
-        const result = await chat.sendMessage({ message });
-        res.json({ text: result.text || "No response generated." });
+        const chat = model.startChat();
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+
+        res.json({ text: response.text() || "No response generated." });
     } catch (error: any) {
         console.error('Gemini Error:', error);
         res.status(500).json({
             error: 'Failed to communicate with Gemini',
-            message: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            message: error.message
         });
     }
 });
