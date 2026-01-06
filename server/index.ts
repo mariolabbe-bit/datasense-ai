@@ -20,10 +20,10 @@ app.get('/health', (req, res) => {
 
 app.get('/api/models', async (req, res) => {
     try {
-        // En la SDK @google/generative-ai, listModels no existe directamente en la clase principal de la misma forma
-        // Intentaremos obtener información básica del modelo para validar la clave
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        res.json({ message: "Clave API parece válida. Intentando conectar con gemini-1.5-flash" });
+        // Intentaremos usar una petición fetch directa a Google para ver qué modelos ve esta IP/Clave
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+        const data = await response.json();
+        res.json(data);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
@@ -37,7 +37,7 @@ app.post('/api/chat', async (req, res) => {
     }
 
     try {
-        // Intentamos con el modelo más estándar. Si esto da 404, probaremos con gemini-pro
+        // Probamos con el prefijo 'models/' explícito por si la SDK tiene un bug en este entorno
         const model = genAI.getGenerativeModel({
             model: "gemini-1.5-flash"
         });
