@@ -5,9 +5,36 @@ export const startChatSession = () => {
     return { status: "ready" };
 };
 
-export const sendMessageToGemini = async (message: string): Promise<string> => {
+export const sendMessageToGemini = async (message: string, dataContext?: any): Promise<string> => {
     try {
-        const response = await fetch(`${BACKEND_URL}/api/chat`, {
+        const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
+        let contextInstruction = `You are an expert data analyst AI assistant named "DataSense".
+        You are currently analyzing a sales dataset for Q3 2023.
+        
+        Context about the data:
+        - Total Revenue: $2.4M (+12.5%)
+        - Net Profit: $850K (+8.1%)
+        - Columns: Date, Product, Category, Region, Sales_Amount, Customer_ID.
+        - There are trends showing increased sales in the "Electronics" category in September.`;
+
+        if (dataContext) {
+            contextInstruction = `You are an expert data analyst AI assistant named "DataSense".
+            You are assisting the user with their uploaded data file: "${dataContext.fileName}".
+            
+            SUMMARY OF THE DATA:
+            - Total Rows: ${dataContext.summary.totalRows}
+            - Columns: ${dataContext.columns.join(', ')}
+            
+            SAMPLE DATA (first row):
+            ${JSON.stringify(dataContext.rows[0])}
+            
+            Your goal is to answer questions about this specific data accurately. 
+            If the user asks for calculations, use the column names provided.
+            Respond in the user's language (Spanish by default since the UI is in Spanish).`;
+        }
+
+        const response = await fetch(`${backendUrl}/api/chat`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -15,17 +42,7 @@ export const sendMessageToGemini = async (message: string): Promise<string> => {
             body: JSON.stringify({
                 message,
                 context: {
-                    systemInstruction: `You are an expert data analyst AI assistant named "DataSense".
-                    You are currently analyzing a sales dataset for Q3 2023.
-                    
-                    Context about the data:
-                    - Total Revenue: $2.4M (+12.5%)
-                    - Net Profit: $850K (+8.1%)
-                    - Columns: Date, Product, Category, Region, Sales_Amount, Customer_ID.
-                    - There are trends showing increased sales in the "Electronics" category in September.
-                    
-                    Your goal is to help the user understand their data, answer questions about specific metrics, and suggest insights.
-                    Keep answers concise, professional, and helpful. Use formatting where appropriate.`
+                    systemInstruction: contextInstruction
                 }
             }),
         });

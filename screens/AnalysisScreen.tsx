@@ -1,11 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
+import { DataResult } from '../services/dataService';
 
 const AnalysisScreen: React.FC = () => {
+    const location = useLocation();
+    const data = location.state?.data as DataResult;
+
     const [messages, setMessages] = useState<ChatMessage[]>([
-        { role: 'model', text: 'Hola. He cargado los datos. ¿Qué te gustaría analizar?' }
+        { role: 'model', text: data ? `¡Hola! He analizado tu archivo "${data.fileName}". ¿Qué te gustaría saber sobre estos datos?` : 'Hola. He cargado los datos. ¿Qué te gustaría analizar?' }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -28,7 +32,7 @@ const AnalysisScreen: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(userMsg.text);
+            const responseText = await sendMessageToGemini(userMsg.text, data);
             const modelMsg: ChatMessage = { role: 'model', text: responseText };
             setMessages(prev => [...prev, modelMsg]);
         } catch (error) {

@@ -5,6 +5,19 @@ import TopNav from '../components/TopNav';
 const HomeScreen: React.FC = () => {
     const navigate = useNavigate();
 
+    const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            navigate('/processing', { state: { file } });
+        }
+    };
+
+    const handleDropZoneClick = () => {
+        fileInputRef.current?.click();
+    };
+
     return (
         <div className="relative flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark">
             <TopNav />
@@ -23,8 +36,15 @@ const HomeScreen: React.FC = () => {
                             </div>
                         </div>
                         <div className="w-full mb-12">
-                            <div 
-                                onClick={() => navigate('/processing')} 
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                className="hidden"
+                                accept=".csv,.xlsx,.xls"
+                                onChange={handleFileSelect}
+                            />
+                            <div
+                                onClick={handleDropZoneClick}
                                 className="group relative flex flex-col items-center justify-center gap-6 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-surface-light dark:bg-surface-dark px-6 py-16 transition-all hover:border-primary/50 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer"
                             >
                                 <div className="absolute inset-0 bg-primary/5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
@@ -35,10 +55,10 @@ const HomeScreen: React.FC = () => {
                                     <p className="text-xl font-bold leading-tight text-slate-900 dark:text-white">Arrastra y suelta tu archivo aquí</p>
                                     <p className="text-slate-500 dark:text-slate-400 text-sm">Soporta archivos .xlsx y .csv hasta 50MB</p>
                                 </div>
-                                <button className="z-10 flex min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary hover:bg-blue-600 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-primary/20">
+                                <div className="z-10 flex min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary hover:bg-blue-600 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors shadow-lg shadow-primary/20">
                                     <span className="material-symbols-outlined mr-2 text-lg">folder_open</span>
                                     <span className="truncate">Explorar archivos</span>
-                                </button>
+                                </div>
                             </div>
                         </div>
                         <div className="w-full flex flex-col gap-4">
@@ -47,8 +67,8 @@ const HomeScreen: React.FC = () => {
                                 <a className="text-sm font-medium text-primary hover:text-blue-400 transition-colors" href="#">Ver todos</a>
                             </div>
                             <div className="grid gap-3">
-                                <div 
-                                    onClick={() => navigate('/dashboard')} 
+                                <div
+                                    onClick={() => navigate('/dashboard')}
                                     className="group flex items-center gap-4 rounded-xl bg-surface-light dark:bg-surface-dark p-4 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-all shadow-sm hover:shadow-md cursor-pointer"
                                 >
                                     <div className="flex items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/20 shrink-0 size-12 text-green-600 dark:text-green-400">
