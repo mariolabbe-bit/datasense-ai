@@ -29,7 +29,11 @@ app.post('/api/chat', async (req, res) => {
     try {
         const model = genAI.getGenerativeModel({
             model: "gemini-flash-latest",
-            systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
+            systemInstruction: (context?.systemInstruction || "Eres un experto analista de datos.") +
+                "\n\nMUY IMPORTANTE: Cuando el usuario pida resúmenes, comparaciones o visualizaciones, DEBES responder incorporando etiquetas especiales para que la interfaz renderice componentes visuales:" +
+                "\n1. Para TABLAS: Usa la etiqueta [TABLE] seguido de un JSON con { \"headers\": [\"col1\", ...], \"rows\": [[val1, val2], ...] } y cierra con [/TABLE]." +
+                "\n2. Para GRÁFICOS: Usa la etiqueta [CHART] seguido de un JSON con { \"title\": \"...\", \"type\": \"bar|line|area|pie\", \"data\": [{ \"name\": \"...\", \"value\": 123 }, ...] } y cierra con [/CHART]." +
+                "\n3. Siempre acompaña los visuales con una breve explicación en texto fuera de las etiquetas."
         });
 
         const result = await model.generateContent(message);
