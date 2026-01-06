@@ -1,4 +1,4 @@
-const BACKEND_URL = 'http://localhost:3001';
+const BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
 
 export const startChatSession = () => {
     // La sesión ahora se gestiona en el backend, devolvemos un identificador si fuera necesario
