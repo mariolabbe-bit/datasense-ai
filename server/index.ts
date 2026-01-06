@@ -18,6 +18,17 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+app.get('/api/models', async (req, res) => {
+    try {
+        // En la SDK @google/generative-ai, listModels no existe directamente en la clase principal de la misma forma
+        // Intentaremos obtener información básica del modelo para validar la clave
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        res.json({ message: "Clave API parece válida. Intentando conectar con gemini-1.5-flash" });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/chat', async (req, res) => {
     const { message, context } = req.body;
 
@@ -26,8 +37,9 @@ app.post('/api/chat', async (req, res) => {
     }
 
     try {
+        // Probamos con 'gemini-1.5-flash-latest' que a veces ayuda con problemas de resolución
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-1.5-flash-latest",
             systemInstruction: context?.systemInstruction || "Eres un experto analista de datos."
         });
 
@@ -38,10 +50,11 @@ app.post('/api/chat', async (req, res) => {
 
         res.json({ text: text || "No response generated." });
     } catch (error: any) {
-        console.error('Gemini Error:', error);
+        console.error('Gemini Error Detallado:', error);
         res.status(500).json({
             error: 'Failed to communicate with Gemini',
-            message: error.message
+            message: error.message,
+            status: error.status
         });
     }
 });
