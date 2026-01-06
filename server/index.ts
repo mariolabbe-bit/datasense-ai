@@ -18,6 +18,15 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+app.get('/api/models', async (req, res) => {
+    try {
+        const list = await genAI.listModels();
+        res.json(list);
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/api/chat', async (req, res) => {
     const { message, context } = req.body;
 
