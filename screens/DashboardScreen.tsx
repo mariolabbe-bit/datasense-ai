@@ -97,6 +97,15 @@ const DashboardScreen: React.FC = () => {
         }
     };
 
+    const handleFieldClick = (col: string) => {
+        setNewChart(prev => ({
+            ...prev,
+            xAxis: col,
+            title: `Análisis de ${col}`
+        }));
+        setShowBuilder(true);
+    };
+
     return (
         <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased overflow-hidden flex flex-col h-screen">
             <header className="flex-none flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 dark:border-border-dark px-6 py-3 bg-white dark:bg-[#111418] z-20">
@@ -128,10 +137,14 @@ const DashboardScreen: React.FC = () => {
                     </div>
                     <div className="flex flex-col gap-2">
                         {data?.columns.map((col, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-default group">
+                            <button
+                                key={idx}
+                                onClick={() => handleFieldClick(col)}
+                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-primary/10 dark:hover:bg-primary/20 transition-all cursor-pointer group w-full text-left"
+                            >
                                 <span className="material-symbols-outlined text-sm text-slate-400 group-hover:text-primary">database</span>
-                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{col}</span>
-                            </div>
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate group-hover:text-primary transition-colors">{col}</span>
+                            </button>
                         ))}
                     </div>
                     <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
