@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import TopNav from '../components/TopNav';
-import { parseFile, DataResult } from '../services/dataService';
+import { parseFile, DataResult, cleanMissingValues, removeConstantColumns } from '../services/dataService';
+import { useAuth } from '../services/AuthContext';
 
 const ProcessingScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { token } = useAuth();
     const file = location.state?.file as File;
 
     const [progress, setProgress] = useState(0);
@@ -38,7 +40,10 @@ const ProcessingScreen: React.FC = () => {
                 try {
                     const analysisResponse = await fetch(`${backendUrl}/api/analyze-structure`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
                         body: JSON.stringify({
                             columns: result.columns,
                             sampleData: result.rows.slice(0, 3)
@@ -64,6 +69,18 @@ const ProcessingScreen: React.FC = () => {
 
         handleProcessing();
     }, [file, navigate]);
+
+    const handleFixMissing = () => {
+        if (processedData) {
+            setProcessedData(cleanMissingValues(processedData));
+        }
+    };
+
+    const handleFixConstant = () => {
+        if (processedData) {
+            setProcessedData(removeConstantColumns(processedData));
+        }
+    };
 
     const handleContinue = () => {
         if (processedData) {
@@ -122,14 +139,22 @@ const ProcessingScreen: React.FC = () => {
                                 <h3 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Problemas Detectados</h3>
                                 <div className="space-y-3">
                                     {processedData?.health?.issues.length ? processedData.health.issues.map((issue, idx) => (
-                                        <div key={idx} className="flex gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                                        <div key={idx} className="flex gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 group">
                                             <span className={`material-symbols-outlined text-xl ${issue.severity === 'high' ? 'text-red-500' : (issue.severity === 'medium' ? 'text-yellow-500' : 'text-blue-500')}`}>
                                                 {issue.severity === 'high' ? 'error' : 'warning'}
                                             </span>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="text-xs font-bold text-slate-900 dark:text-white">{issue.column}</p>
                                                 <p className="text-[11px] text-slate-500 leading-tight">{issue.message}</p>
                                             </div>
+                                            {(issue.type === 'missing' || issue.type === 'constant') && (
+                                                <button
+                                                    onClick={() => issue.type === 'missing' ? handleFixMissing() : handleFixConstant()}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10 text-primary text-[10px] font-black px-2 py-1 rounded-md hover:bg-primary hover:text-white"
+                                                >
+                                                    Arreglar
+                                                </button>
+                                            )}
                                         </div>
                                     )) : (
                                         <div className="flex items-center gap-3 p-4 rounded-xl bg-green-500/10 border border-green-500/20 text-green-500">
@@ -150,9 +175,16 @@ const ProcessingScreen: React.FC = () => {
                                             <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{suggestion}</p>
                                         </div>
                                     ))}
-                                    <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 mt-6">
-                                        <p className="text-xs text-primary font-bold italic">Asesoría IA: "La calidad de tus datos influye directamente en la precisión de los insights generados."</p>
-                                    </div>
+                                    {processedData?.health?.score < 100 && (
+                                        <div className="p-4 rounded-xl bg-primary/10 border-2 border-dashed border-primary/20 mt-6">
+                                            <p className="text-xs text-primary font-black uppercase tracking-wider mb-2">💡 Auto-Limpieza Experta</p>
+                                            <p className="text-xs text-slate-500 leading-relaxed mb-3">DataSense puede corregir automáticamente los problemas de nulos y columnas constantes por ti.</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                <button onClick={handleFixMissing} className="text-[10px] font-bold bg-white dark:bg-slate-800 border border-primary/20 text-primary px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-all">Limpiar Nulos</button>
+                                                <button onClick={handleFixConstant} className="text-[10px] font-bold bg-white dark:bg-slate-800 border border-primary/20 text-primary px-3 py-1.5 rounded-lg hover:bg-primary hover:text-white transition-all">Quitar Constantes</button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

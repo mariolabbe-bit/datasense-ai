@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MOCK_USER } from '../types';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, BarChart, Bar, LineChart, Line } from 'recharts';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { DataResult } from '../services/dataService';
+import { useAuth } from '../services/AuthContext';
 
 const COLORS = ['#137fec', '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#6366f1'];
 
@@ -18,11 +20,42 @@ interface ChartRecommendation {
 const DashboardScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user, token, logout } = useAuth();
     const data = location.state?.data as DataResult;
     const initialRecommendations = location.state?.recommendations as ChartRecommendation[] || [];
 
     const [userCharts, setUserCharts] = useState<ChartRecommendation[]>([]);
     const [showBuilder, setShowBuilder] = useState(false);
+    const [narrative, setNarrative] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+    const [globalFilter, setGlobalFilter] = useState<{ column: string; value: any } | null>(null);
+    const dashboardRef = useRef<HTMLDivElement>(null);
+
+    const handleExportPDF = async () => {
+        if (!dashboardRef.current || isExporting) return;
+        setIsExporting(true);
+        try {
+            const canvas = await html2canvas(dashboardRef.current, {
+                scale: 2,
+                useCORS: true,
+                backgroundColor: '#f8fafc' // Slightly off-white for better PDF feel
+            });
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgWidth = 210;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`DataSense_Report_${data?.fileName || 'export'}.pdf`);
+        } catch (err) {
+            console.error("Export failed:", err);
+            alert("Error al exportar PDF. Intenta de nuevo.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const [newChart, setNewChart] = useState<ChartRecommendation>({
         title: 'Nuevo Gráfico',
         type: 'bar',
@@ -30,13 +63,77 @@ const DashboardScreen: React.FC = () => {
         yAxis: data?.columns[data?.columns.length > 1 ? 1 : 0] || data?.columns[0] || '',
     });
 
+    useEffect(() => {
+        const fetchNarrative = async () => {
+            if (!data || !token) return;
+            const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
+            const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+            try {
+                const response = await fetch(`${backendUrl}/api/generate-narrative`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        columns: data.columns,
+                        summary: { ...data.summary, fileName: data.fileName },
+                        health: data.health
+                    })
+                });
+                if (response.ok) {
+                    const res = await response.json();
+                    setNarrative(res.narrative);
+                }
+            } catch (err) {
+                console.error("Narrative fetch failed:", err);
+            }
+        };
+        fetchNarrative();
+    }, [data, token]);
+
+    const handleSave = async () => {
+        if (!data || isSaving || !token) return;
+        setIsSaving(true);
+        const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
+        const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+        try {
+            const response = await fetch(`${backendUrl}/api/save-analysis`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    title: `Análisis de ${data.fileName}`,
+                    data: { data, recommendations: initialRecommendations, userCharts },
+                    insights: narrative
+                })
+            });
+            if (response.ok) {
+                alert('¡Dashboard guardado con éxito!');
+            } else {
+                alert('Error al guardar el dashboard.');
+            }
+        } catch (err) {
+            console.error("Save failed:", err);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const filteredRows = useMemo(() => {
+        if (!data || !globalFilter) return data?.rows || [];
+        return data.rows.filter(row => String(row[globalFilter.column]) === String(globalFilter.value));
+    }, [data, globalFilter]);
+
     const allCharts = useMemo(() => [
         ...initialRecommendations,
         ...userCharts
     ], [initialRecommendations, userCharts]);
 
     const fileName = data?.fileName || 'Reporte de Datos';
-    const totalRows = data?.summary.totalRows || 0;
+    const totalRows = filteredRows.length;
 
     const handleAddChart = () => {
         setUserCharts(prev => [...prev, { ...newChart, id: Date.now().toString() }]);
@@ -44,12 +141,25 @@ const DashboardScreen: React.FC = () => {
     };
 
     const renderChart = (rec: ChartRecommendation) => {
-        const chartData = data?.rows.slice(0, 50) || [];
+        const chartData = filteredRows.slice(0, 50);
+
+        const handleChartClick = (state: any) => {
+            if (state && state.activePayload && state.activePayload.length > 0) {
+                const clickedValue = state.activePayload[0].payload[rec.xAxis];
+                setGlobalFilter({ column: rec.xAxis, value: clickedValue });
+            }
+        };
+
+        const handlePieClick = (data: any) => {
+            if (data && data.name) {
+                setGlobalFilter({ column: rec.xAxis, value: data.name });
+            }
+        };
 
         switch (rec.type) {
             case 'area':
                 return (
-                    <AreaChart data={chartData}>
+                    <AreaChart data={chartData} onClick={handleChartClick}>
                         <defs>
                             <linearGradient id={`color-${rec.xAxis}-${rec.yAxis}`} x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#137fec" stopOpacity={0.8} />
@@ -65,7 +175,7 @@ const DashboardScreen: React.FC = () => {
                 );
             case 'bar':
                 return (
-                    <BarChart data={chartData}>
+                    <BarChart data={chartData} onClick={handleChartClick}>
                         <XAxis dataKey={rec.xAxis} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                         <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                         <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} />
@@ -74,7 +184,7 @@ const DashboardScreen: React.FC = () => {
                 );
             case 'line':
                 return (
-                    <LineChart data={chartData}>
+                    <LineChart data={chartData} onClick={handleChartClick}>
                         <XAxis dataKey={rec.xAxis} stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                         <YAxis stroke="#64748b" fontSize={10} tickLine={false} axisLine={false} />
                         <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff' }} />
@@ -84,7 +194,15 @@ const DashboardScreen: React.FC = () => {
             case 'pie':
                 return (
                     <PieChart>
-                        <Pie data={chartData.slice(0, 6)} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey={rec.yAxis} nameKey={rec.xAxis}>
+                        <Pie
+                            data={chartData.slice(0, 6)}
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey={rec.yAxis}
+                            nameKey={rec.xAxis}
+                            onClick={handlePieClick}
+                        >
                             {chartData.slice(0, 6).map((_, index) => (
                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
@@ -120,11 +238,19 @@ const DashboardScreen: React.FC = () => {
                         <Link to="/analysis" state={{ data }} className="hover:text-primary transition-colors">Conversación IA</Link>
                     </nav>
                 </div>
-                <div className="flex items-center gap-4">
-                    <div
-                        className="bg-center bg-no-repeat bg-cover rounded-full size-9 border border-gray-200 dark:border-gray-700"
-                        style={{ backgroundImage: `url("${MOCK_USER.avatarUrl}")` }}
-                    ></div>
+                <div className="flex items-center gap-6">
+                    <div className="flex flex-col items-end">
+                        <p className="text-xs font-black text-slate-900 dark:text-white leading-none mb-1">{user?.name || user?.email}</p>
+                        <button
+                            onClick={logout}
+                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70 transition-colors"
+                        >
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                    <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold shadow-sm border border-primary/20">
+                        {user?.name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+                    </div>
                 </div>
             </header>
 
@@ -159,7 +285,7 @@ const DashboardScreen: React.FC = () => {
                 </aside>
 
                 <main className="flex-1 overflow-y-auto overflow-x-hidden relative bg-slate-50/50 dark:bg-slate-900/20">
-                    <div className="layout-container flex flex-col h-full max-w-[1200px] mx-auto px-6 py-6 sm:px-8">
+                    <div ref={dashboardRef} className="layout-container flex flex-col h-full max-w-[1200px] mx-auto px-6 py-6 sm:px-8 bg-slate-50/50 dark:bg-slate-900/20">
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                             <div className="flex flex-col gap-1">
                                 <p className="text-xs font-bold text-primary uppercase tracking-widest">{fileName}</p>
@@ -168,19 +294,31 @@ const DashboardScreen: React.FC = () => {
                                 </h1>
                             </div>
                             <div className="flex gap-3">
-                                <button onClick={() => setShowBuilder(true)} className="flex items-center justify-center h-10 px-6 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white text-sm font-bold hover:shadow-md transition-all gap-2">
-                                    <span className="material-symbols-outlined text-[18px]">add_chart</span>
-                                    <span className="hidden sm:inline">Nuevo Gráfico</span>
+                                <button
+                                    onClick={handleExportPDF}
+                                    className={`flex items-center justify-center h-10 px-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm font-bold hover:bg-red-500 hover:text-white transition-all gap-2 ${isExporting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isExporting}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">{isExporting ? 'sync' : 'picture_as_pdf'}</span>
+                                    <span>{isExporting ? 'Procesando...' : 'PDF'}</span>
                                 </button>
-                                <button onClick={() => navigate('/share')} className="flex items-center justify-center h-10 px-6 rounded-lg bg-primary text-white text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all gap-2 text-primary-fg">
-                                    <span className="material-symbols-outlined text-[18px]">share</span>
-                                    <span>Compartir</span>
+                                <button
+                                    onClick={handleSave}
+                                    className={`flex items-center justify-center h-10 px-4 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-sm font-bold hover:bg-green-500 hover:text-white transition-all gap-2 ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    disabled={isSaving}
+                                >
+                                    <span className="material-symbols-outlined text-[18px]">{isSaving ? 'sync' : 'save'}</span>
+                                    <span>{isSaving ? 'Guardando...' : 'Guardar'}</span>
+                                </button>
+                                <button onClick={() => setShowBuilder(true)} className="flex items-center justify-center h-10 px-4 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-white text-sm font-bold hover:shadow-md transition-all gap-2">
+                                    <span className="material-symbols-outlined text-[18px]">add_chart</span>
+                                    <span className="hidden sm:inline">Nuevo</span>
                                 </button>
                             </div>
                         </div>
 
                         {/* Stats Summary Cards */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                             <div className="flex flex-col gap-1 rounded-xl p-5 bg-white dark:bg-[#1a2027] border border-gray-100 dark:border-[#283039] shadow-sm">
                                 <p className="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">Filas Totales</p>
                                 <p className="text-slate-900 dark:text-white text-2xl font-black">{totalRows.toLocaleString()}</p>
@@ -192,6 +330,46 @@ const DashboardScreen: React.FC = () => {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Executive Narrative Summary */}
+                        {narrative && (
+                            <div className="mb-8 p-6 rounded-3xl bg-gradient-to-br from-primary/10 via-white to-purple-500/10 dark:from-primary/20 dark:via-slate-800/50 dark:to-purple-500/10 border border-primary/20 shadow-xl relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-outlined text-7xl text-primary">auto_awesome</span>
+                                </div>
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="size-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary">
+                                        <span className="material-symbols-outlined text-lg">description</span>
+                                    </div>
+                                    <h3 className="text-sm font-black uppercase tracking-widest text-primary">Resumen Ejecutivo IA</h3>
+                                </div>
+                                <p className="text-slate-700 dark:text-slate-200 text-base leading-relaxed font-medium relative z-10">
+                                    {narrative}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Filter Indicator */}
+                        {globalFilter && (
+                            <div className="mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold">
+                                    <span className="material-symbols-outlined text-sm">filter_alt</span>
+                                    <span>Filtrado por <span className="uppercase">{globalFilter.column}</span>: {globalFilter.value}</span>
+                                    <button
+                                        onClick={() => setGlobalFilter(null)}
+                                        className="ml-2 hover:bg-primary/20 rounded-full size-4 flex items-center justify-center transition-colors"
+                                    >
+                                        <span className="material-symbols-outlined text-[14px]">close</span>
+                                    </button>
+                                </div>
+                                <button
+                                    onClick={() => setGlobalFilter(null)}
+                                    className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-primary transition-colors"
+                                >
+                                    Limpiar Filtros
+                                </button>
+                            </div>
+                        )}
 
                         {/* Charts Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">

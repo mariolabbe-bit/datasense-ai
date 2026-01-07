@@ -23,6 +23,53 @@ export interface DataResult {
     health?: DataHealthReport;
 }
 
+export const cleanMissingValues = (data: DataResult): DataResult => {
+    const newRows = data.rows.map(row => {
+        const newRow = { ...row };
+        data.columns.forEach(col => {
+            if (newRow[col] === null || newRow[col] === undefined || newRow[col] === '') {
+                // If numeric type, fill with 0, else empty string
+                newRow[col] = data.summary.columnTypes[col] === 'number' ? 0 : '';
+            }
+        });
+        return newRow;
+    });
+
+    const newHealth = analyzeDataQuality(data.columns, newRows);
+    return { ...data, rows: newRows, health: newHealth };
+};
+
+export const removeConstantColumns = (data: DataResult): DataResult => {
+    const constantCols = data.health?.issues
+        .filter(i => i.type === 'constant')
+        .map(i => i.column) || [];
+
+    if (constantCols.length === 0) return data;
+
+    const newColumns = data.columns.filter(col => !constantCols.includes(col));
+    const newRows = data.rows.map(row => {
+        const newRow = { ...row };
+        constantCols.forEach(col => delete newRow[col]);
+        return newRow;
+    });
+
+    const newColumnTypes = { ...data.summary.columnTypes };
+    constantCols.forEach(col => delete newColumnTypes[col]);
+
+    const newHealth = analyzeDataQuality(newColumns, newRows);
+
+    return {
+        ...data,
+        columns: newColumns,
+        rows: newRows,
+        summary: {
+            ...data.summary,
+            columnTypes: newColumnTypes
+        },
+        health: newHealth
+    };
+};
+
 const analyzeDataQuality = (columns: string[], rows: any[]): DataHealthReport => {
     const issues: DataHealthReport['issues'] = [];
     const suggestions: string[] = [];

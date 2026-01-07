@@ -1,27 +1,47 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import HomeScreen from './screens/HomeScreen';
 import ProcessingScreen from './screens/ProcessingScreen';
-import RelationshipsScreen from './screens/RelationshipsScreen';
-import ReviewScreen from './screens/ReviewScreen';
 import DashboardScreen from './screens/DashboardScreen';
-import ShareScreen from './screens/ShareScreen';
-import MobilePreviewScreen from './screens/MobilePreviewScreen';
 import AnalysisScreen from './screens/AnalysisScreen';
+import LoginScreen from './screens/LoginScreen';
+import SignUpScreen from './screens/SignUpScreen';
+import { AuthProvider, useAuth } from './services/AuthContext';
 
-const App: React.FC = () => {
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
+function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<HomeScreen />} />
-        <Route path="/processing" element={<ProcessingScreen />} />
-        <Route path="/relationships" element={<RelationshipsScreen />} />
-        <Route path="/review" element={<ReviewScreen />} />
-        <Route path="/dashboard" element={<DashboardScreen />} />
-        <Route path="/share" element={<ShareScreen />} />
-        <Route path="/mobile-preview" element={<MobilePreviewScreen />} />
-        <Route path="/analysis" element={<AnalysisScreen />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginScreen />} />
+          <Route path="/signup" element={<SignUpScreen />} />
+          <Route path="/" element={
+            <ProtectedRoute>
+              <HomeScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/processing" element={
+            <ProtectedRoute>
+              <ProcessingScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <DashboardScreen />
+            </ProtectedRoute>
+          } />
+          <Route path="/analysis" element={
+            <ProtectedRoute>
+              <AnalysisScreen />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 };

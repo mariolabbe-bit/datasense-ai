@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MOCK_USER } from '../types';
+import { useAuth } from '../services/AuthContext';
 
 interface TopNavProps {
     title?: string;
@@ -11,11 +11,13 @@ interface TopNavProps {
 }
 
 const TopNav: React.FC<TopNavProps> = ({ title = "DataSense AI", showProfile = true, backLink, customRightContent }) => {
+    const { user, logout } = useAuth();
+
     return (
         <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-border-dark bg-surface-light dark:bg-background-dark px-6 py-4 lg:px-10 sticky top-0 z-50">
             <div className="flex items-center gap-3">
                 {backLink ? (
-                     <Link to={backLink} className="flex items-center justify-center size-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
+                    <Link to={backLink} className="flex items-center justify-center size-8 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white transition-colors">
                         <span className="material-symbols-outlined">arrow_back</span>
                     </Link>
                 ) : (
@@ -27,28 +29,24 @@ const TopNav: React.FC<TopNavProps> = ({ title = "DataSense AI", showProfile = t
                     </Link>
                 )}
             </div>
-            
+
             <div className="flex flex-1 justify-end gap-6 items-center">
                 {customRightContent ? customRightContent : (
                     <>
-                        <div className="flex gap-2">
-                            <Link to="/mobile-preview" title="Mobile View" className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400">
-                                <span className="material-symbols-outlined">smartphone</span>
-                            </Link>
-                            <button className="flex size-10 cursor-pointer items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-500 dark:text-slate-400">
-                                <span className="material-symbols-outlined">notifications</span>
-                            </button>
-                        </div>
                         {showProfile && (
-                            <div className="flex items-center gap-3 pl-2 border-l border-slate-200 dark:border-slate-800">
+                            <div className="flex items-center gap-4">
                                 <div className="text-right hidden sm:block">
-                                    <p className="text-sm font-bold leading-none text-slate-900 dark:text-white">{MOCK_USER.name}</p>
-                                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-none mt-1">{MOCK_USER.role}</p>
+                                    <p className="text-sm font-black text-slate-900 dark:text-white leading-none">{user?.name || user?.email}</p>
+                                    <button
+                                        onClick={logout}
+                                        className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/70 transition-colors mt-1"
+                                    >
+                                        Cerrar Sesión
+                                    </button>
                                 </div>
-                                <div 
-                                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 ring-2 ring-slate-200 dark:ring-slate-700" 
-                                    style={{backgroundImage: `url("${MOCK_USER.avatarUrl}")`}}
-                                ></div>
+                                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold border border-primary/20 shadow-sm">
+                                    {user?.name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+                                </div>
                             </div>
                         )}
                     </>

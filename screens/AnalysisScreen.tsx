@@ -4,8 +4,11 @@ import { ChatMessage } from '../types';
 import { sendMessageToGemini } from '../services/geminiService';
 import { DataResult } from '../services/dataService';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, AreaChart, Area, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { useAuth } from '../services/AuthContext';
 
 const COLORS = ['#137fec', '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#6366f1'];
+// ... AIChart and AITable components ...
+// (Note: To avoid overwriting too much, I'll only replace from line 105 onwards where handleSendMessage is)
 
 const AIChart: React.FC<{ data: any }> = ({ data }) => {
     const { title, type, data: chartData } = data;
@@ -134,6 +137,7 @@ const AnalysisScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const { token, user, logout } = useAuth();
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -151,7 +155,7 @@ const AnalysisScreen: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(userMsg.text, data);
+            const responseText = await sendMessageToGemini(userMsg.text, token, data);
             const modelMsg: ChatMessage = { role: 'model', text: responseText };
             setMessages(prev => [...prev, modelMsg]);
         } catch (error) {
@@ -173,6 +177,15 @@ const AnalysisScreen: React.FC = () => {
                             <span className="material-symbols-outlined text-sm">arrow_back</span>
                             <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
                         </Link>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="flex flex-col items-end">
+                            <p className="text-[10px] font-black text-white leading-none mb-1">{user?.name || user?.email}</p>
+                            <button onClick={logout} className="text-[8px] font-black uppercase tracking-widest text-primary hover:text-white transition-colors">Cerrar Sesión</button>
+                        </div>
+                        <div className="size-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary text-xs font-bold border border-primary/20">
+                            {user?.name?.charAt(0) || user?.email?.charAt(0).toUpperCase()}
+                        </div>
                     </div>
                 </header>
 
