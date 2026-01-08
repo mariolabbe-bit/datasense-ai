@@ -288,8 +288,8 @@ const DashboardScreen: React.FC = () => {
                         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
                             <div className="flex flex-col gap-1">
                                 <p className="text-xs font-bold text-primary uppercase tracking-widest">{fileName}</p>
-                                <h1 className="text-2xl md:text-3xl font-black leading-tight tracking-tight text-slate-900 dark:text-white truncate max-w-md">
-                                    Visualizaciones Generadas
+                                <h1 className="text-2xl md:text-3xl font-black leading-tight tracking-tight text-slate-900 dark:text-white truncate max-w-md flex items-center gap-2">
+                                    Visualizaciones {location.state?.relationships ? <span className="text-[10px] bg-primary text-white px-2 py-1 rounded-md uppercase tracking-widest">PRO</span> : ''}
                                 </h1>
                             </div>
                             <div className="flex gap-3">

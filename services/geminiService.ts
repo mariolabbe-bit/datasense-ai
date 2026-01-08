@@ -1,6 +1,6 @@
 import { getBackendUrl } from './apiConfig';
 
-export const sendMessageToGemini = async (message: string, token: string | null, dataContext?: any): Promise<string> => {
+export const sendMessageToGemini = async (message: string, token: string | null, dataContext?: any, relationships?: any[]): Promise<string> => {
     try {
         const backendUrl = getBackendUrl();
 
@@ -21,6 +21,13 @@ export const sendMessageToGemini = async (message: string, token: string | null,
             - Total Rows: ${dataContext.summary.totalRows}
             - Columns: ${dataContext.columns.join(', ')}
             
+            ${relationships && relationships.length > 0 ? `
+            RELATIONAL CONTEXT:
+            This data is a result of a JOIN between multiple tables.
+            Relationships defined:
+            ${relationships.map(r => `- Table "${r.fromTable}" (Field: ${r.fromField}) relates to Table "${r.toTable}" (Field: ${r.toField})`).join('\n')}
+            ` : ''}
+
             SAMPLE DATA (first row):
             ${JSON.stringify(dataContext.rows[0])}
             

@@ -4,37 +4,48 @@ import TopNav from '../components/TopNav';
 import { parseFile, DataResult, cleanMissingValues, removeConstantColumns } from '../services/dataService';
 import { useAuth } from '../services/AuthContext';
 import { getBackendUrl } from '../services/apiConfig';
+import RelationshipManager from '../components/RelationshipManager';
+import { Relationship } from '../types';
 
 const ProcessingScreen: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { token } = useAuth();
-    const file = location.state?.file as File;
+    const files = location.state?.files as File[] || (location.state?.file ? [location.state?.file] : []);
+    const isMultiTable = files.length > 1;
 
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Iniciando...');
-    const [processedData, setProcessedData] = useState<DataResult | null>(null);
+    const [allProcessedData, setAllProcessedData] = useState<DataResult[]>([]);
+    const [processedData, setProcessedData] = useState<DataResult | null>(null); // Still keeping for single table compat
     const [showHealthReport, setShowHealthReport] = useState(false);
     const [recommendations, setRecommendations] = useState<any[]>([]);
 
     useEffect(() => {
-        if (!file) {
+        if (!files.length) {
             navigate('/');
             return;
         }
 
         const handleProcessing = async () => {
             try {
-                setStatus('Leyendo archivo...');
-                setProgress(20);
+                const results: DataResult[] = [];
+                for (let i = 0; i < files.length; i++) {
+                    const f = files[i];
+                    setStatus(`Procesando ${f.name}...`);
+                    setProgress(Math.round(((i) / files.length) * 50));
 
-                const result = await parseFile(file);
-                setProcessedData(result);
+                    const result = await parseFile(f);
+                    results.push(result);
+                }
+
+                setAllProcessedData(results);
+                setProcessedData(results[0]); // Default to first one for now
 
                 setProgress(60);
-                setStatus('Analizando estructura...');
+                setStatus('Analizando estructuras...');
 
-                // Fetch chart recommendations from backend
+                // For now, only analyze the first table or combined if possible
                 const backendUrl = getBackendUrl();
 
                 try {
@@ -45,8 +56,8 @@ const ProcessingScreen: React.FC = () => {
                             'Authorization': `Bearer ${token}`
                         },
                         body: JSON.stringify({
-                            columns: result.columns,
-                            sampleData: result.rows.slice(0, 3)
+                            columns: results[0].columns,
+                            sampleData: results[0].rows.slice(0, 3)
                         })
                     });
 
@@ -63,12 +74,12 @@ const ProcessingScreen: React.FC = () => {
                 setShowHealthReport(true);
             } catch (error) {
                 console.error("Processing error:", error);
-                navigate('/', { state: { error: 'Error al procesar el archivo' } });
+                navigate('/', { state: { error: 'Error al procesar los archivos' } });
             }
         };
 
         handleProcessing();
-    }, [file, navigate]);
+    }, [files, navigate]);
 
     const handleFixMissing = () => {
         if (processedData) {
@@ -82,10 +93,24 @@ const ProcessingScreen: React.FC = () => {
         }
     };
 
+    const [showRelMapper, setShowRelMapper] = useState(false);
+
     const handleContinue = () => {
-        if (processedData) {
+        if (isMultiTable && allProcessedData.length > 1) {
+            setShowRelMapper(true);
+        } else if (processedData) {
             navigate('/dashboard', { state: { data: processedData, recommendations } });
         }
+    };
+
+    const handleRelMappingComplete = (joinedData: DataResult, relationships: Relationship[]) => {
+        navigate('/dashboard', {
+            state: {
+                data: joinedData,
+                recommendations,
+                relationships // Passing for future AI context
+            }
+        });
     };
 
     const getScoreColor = (score: number) => {
@@ -124,7 +149,7 @@ const ProcessingScreen: React.FC = () => {
                         <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
                             <div>
                                 <h2 className="text-2xl font-black text-slate-900 dark:text-white">Reporte de Salud de Datos</h2>
-                                <p className="text-sm text-slate-500">Analizamos la consistencia de tu archivo "{file.name}"</p>
+                                <p className="text-sm text-slate-500">Analizamos la consistencia de: {files.map(f => `"${f.name}"`).join(', ')}</p>
                             </div>
                             <div className="text-right">
                                 <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Score de Salud</p>
@@ -198,6 +223,14 @@ const ProcessingScreen: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                )}
+
+                {showRelMapper && (
+                    <RelationshipManager
+                        tables={allProcessedData}
+                        onCancel={() => setShowRelMapper(false)}
+                        onComplete={handleRelMappingComplete}
+                    />
                 )}
             </main>
         </div>

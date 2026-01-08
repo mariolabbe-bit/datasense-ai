@@ -8,9 +8,9 @@ const HomeScreen: React.FC = () => {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            navigate('/processing', { state: { file } });
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            navigate('/processing', { state: { files: Array.from(files) } });
         }
     };
 
@@ -41,6 +41,7 @@ const HomeScreen: React.FC = () => {
                                 ref={fileInputRef}
                                 className="hidden"
                                 accept=".csv,.xlsx,.xls"
+                                multiple
                                 onChange={handleFileSelect}
                             />
                             <div

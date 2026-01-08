@@ -129,6 +129,7 @@ const MessageBlock: React.FC<{ text: string }> = ({ text }) => {
 const AnalysisScreen: React.FC = () => {
     const location = useLocation();
     const data = location.state?.data as DataResult;
+    const relationships = location.state?.relationships as any[];
 
     const [messages, setMessages] = useState<ChatMessage[]>([
         { role: 'model', text: data ? `¡Hola! He analizado tu archivo "${data.fileName}". ¿En qué puedo ayudarte a visualizar hoy?` : 'Hola. He cargado los datos. ¿Qué te gustaría analizar?' }
@@ -155,7 +156,7 @@ const AnalysisScreen: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const responseText = await sendMessageToGemini(userMsg.text, token, data);
+            const responseText = await sendMessageToGemini(userMsg.text, token, data, relationships);
             const modelMsg: ChatMessage = { role: 'model', text: responseText };
             setMessages(prev => [...prev, modelMsg]);
         } catch (error) {

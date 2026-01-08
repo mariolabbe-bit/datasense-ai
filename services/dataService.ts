@@ -13,6 +13,7 @@ export interface DataHealthReport {
 }
 
 export interface DataResult {
+    id: string; // Added ID for relational mapping
     fileName: string;
     columns: string[];
     rows: any[];
@@ -22,6 +23,40 @@ export interface DataResult {
     };
     health?: DataHealthReport;
 }
+
+export const performJoin = (
+    leftTable: DataResult,
+    rightTable: DataResult,
+    fromField: string,
+    toField: string,
+    type: 'one-to-one' | 'one-to-many' | 'many-to-one'
+): any[] => {
+    // Basic inner join implementation for the browser
+    const joinedRows: any[] = [];
+
+    leftTable.rows.forEach(leftRow => {
+        const leftValue = leftRow[fromField];
+
+        const matches = rightTable.rows.filter(rightRow =>
+            String(rightRow[toField]) === String(leftValue)
+        );
+
+        if (matches.length > 0) {
+            matches.forEach(match => {
+                // Prefix columns to avoid collisions if they have same names
+                const rightRowPrefixed: any = {};
+                Object.keys(match).forEach(key => {
+                    if (key !== toField) {
+                        rightRowPrefixed[`${rightTable.fileName.split('.')[0]}_${key}`] = match[key];
+                    }
+                });
+                joinedRows.push({ ...leftRow, ...rightRowPrefixed });
+            });
+        }
+    });
+
+    return joinedRows;
+};
 
 export const cleanMissingValues = (data: DataResult): DataResult => {
     const newRows = data.rows.map(row => {
@@ -160,6 +195,7 @@ const parseCSV = (file: File): Promise<DataResult> => {
                 const health = analyzeDataQuality(columns, rows);
 
                 resolve({
+                    id: Math.random().toString(36).substr(2, 9),
                     fileName: file.name,
                     columns,
                     rows,
@@ -201,6 +237,7 @@ const parseExcel = async (file: File): Promise<DataResult> => {
                 const health = analyzeDataQuality(columns, jsonData);
 
                 resolve({
+                    id: Math.random().toString(36).substr(2, 9),
                     fileName: file.name,
                     columns,
                     rows: jsonData,
