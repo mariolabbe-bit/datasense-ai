@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { PrismaClient } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 dotenv.config();
@@ -39,8 +39,13 @@ app.post('/api/auth/register', async (req, res) => {
             data: { email, password: hashedPassword, name }
         });
         res.json({ message: 'User created' });
-    } catch (error) {
-        res.status(400).json({ error: 'Email already exists' });
+    } catch (error: any) {
+        console.error('Registration error:', error);
+        if (error.code === 'P2002') {
+            res.status(400).json({ error: 'El email ya está registrado' });
+        } else {
+            res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+        }
     }
 });
 
@@ -99,7 +104,6 @@ app.post('/api/generate-narrative', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/chat', authenticateToken, async (req, res) => {
-    // ... existing chat logic ...
     const { message, context } = req.body;
     console.log('Incoming chat request');
 

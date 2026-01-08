@@ -5,6 +5,7 @@ import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { DataResult } from '../services/dataService';
 import { useAuth } from '../services/AuthContext';
+import { getBackendUrl } from '../services/apiConfig';
 
 const COLORS = ['#137fec', '#8b5cf6', '#10b981', '#f59e0b', '#3b82f6', '#6366f1'];
 
@@ -66,8 +67,7 @@ const DashboardScreen: React.FC = () => {
     useEffect(() => {
         const fetchNarrative = async () => {
             if (!data || !token) return;
-            const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
-            const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+            const backendUrl = getBackendUrl();
             try {
                 const response = await fetch(`${backendUrl}/api/generate-narrative`, {
                     method: 'POST',
@@ -95,8 +95,7 @@ const DashboardScreen: React.FC = () => {
     const handleSave = async () => {
         if (!data || isSaving || !token) return;
         setIsSaving(true);
-        const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
-        const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+        const backendUrl = getBackendUrl();
         try {
             const response = await fetch(`${backendUrl}/api/save-analysis`, {
                 method: 'POST',

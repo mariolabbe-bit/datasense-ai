@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import TopNav from '../components/TopNav';
 import { parseFile, DataResult, cleanMissingValues, removeConstantColumns } from '../services/dataService';
 import { useAuth } from '../services/AuthContext';
+import { getBackendUrl } from '../services/apiConfig';
 
 const ProcessingScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -34,8 +35,7 @@ const ProcessingScreen: React.FC = () => {
                 setStatus('Analizando estructura...');
 
                 // Fetch chart recommendations from backend
-                const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
-                const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+                const backendUrl = getBackendUrl();
 
                 try {
                     const analysisResponse = await fetch(`${backendUrl}/api/analyze-structure`, {

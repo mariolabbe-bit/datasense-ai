@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { getBackendUrl } from '../services/apiConfig';
 
 const SignUpScreen: React.FC = () => {
     const [name, setName] = useState('');
@@ -15,8 +16,7 @@ const SignUpScreen: React.FC = () => {
         setError('');
 
         try {
-            const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
-            const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+            const backendUrl = getBackendUrl();
             const response = await fetch(`${backendUrl}/api/auth/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },

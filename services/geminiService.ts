@@ -1,8 +1,8 @@
-const PRODUCTION_BACKEND_URL = 'https://datasense-ai-l07q.onrender.com';
+import { getBackendUrl } from './apiConfig';
 
 export const sendMessageToGemini = async (message: string, token: string | null, dataContext?: any): Promise<string> => {
     try {
-        const backendUrl = import.meta.env['VITE_API_URL'] || PRODUCTION_BACKEND_URL;
+        const backendUrl = getBackendUrl();
 
         let contextInstruction = `You are an expert data analyst AI assistant named "DataSense".
         You are currently analyzing a sales dataset for Q3 2023.
